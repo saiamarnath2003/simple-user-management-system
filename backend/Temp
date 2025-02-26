@@ -1,1 +1,4 @@
-
+mkdir user-management-backend
+cd user-management-backend
+npm init -y
+npm install express mongoose body-parser cors
