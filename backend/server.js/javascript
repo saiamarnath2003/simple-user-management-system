@@ -1,0 +1,83 @@
+const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const mongoose = require('mongoose');
+const User = require('./models/User'); // User model for MongoDB
+
+const app = express();
+const port = 5000;
+
+// Middleware
+app.use(cors());
+app.use(bodyParser.json());
+
+// MongoDB connection
+mongoose.connect('mongodb://localhost:27017/userdb', { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log('MongoDB connected'))
+  .catch(err => console.log('MongoDB connection error: ', err));
+
+// CRUD Operations
+
+// Create a new user
+app.post('/api/users', async (req, res) => {
+  try {
+    const { name, email, dob, gender, country, role } = req.body;
+    const newUser = new User({ name, email, dob, gender, country, role });
+    await newUser.save();
+    res.status(201).json({ success: true, message: 'User added successfully!', user: newUser });
+  } catch (error) {
+    res.status(400).json({ success: false, message: 'Error adding user', error });
+  }
+});
+
+// Get all users (with pagination)
+app.get('/api/users', async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = 5; // 5 users per page
+  try {
+    const users = await User.find()
+      .skip((page - 1) * limit)
+      .limit(limit);
+    const totalUsers = await User.countDocuments();
+    res.json({ users, totalUsers, pages: Math.ceil(totalUsers / limit) });
+  } catch (error) {
+    res.status(400).json({ success: false, message: 'Error fetching users', error });
+  }
+});
+
+// Edit a user
+app.put('/api/users/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name, email, dob, gender, country, role } = req.body;
+  try {
+    const updatedUser = await User.findByIdAndUpdate(id, { name, email, dob, gender, country, role }, { new: true });
+    res.json({ success: true, message: 'User updated successfully', user: updatedUser });
+  } catch (error) {
+    res.status(400).json({ success: false, message: 'Error updating user', error });
+  }
+});
+
+// Delete a user
+app.delete('/api/users/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await User.findByIdAndDelete(id);
+    res.json({ success: true, message: 'User deleted successfully' });
+  } catch (error) {
+    res.status(400).json({ success: false, message: 'Error deleting user', error });
+  }
+});
+
+// Clone a user (by only entering name)
+app.post('/api/clone-user', async (req, res) => {
+  const { name } = req.body;
+  try {
+    const newUser = new User({ name });
+    await newUser.save();
+    res.status(201).json({ success: true, message: 'User cloned successfully', user: newUser });
+  } catch (error) {
+    res.status(400).json({ success: false, message: 'Error cloning user', error });
+  }
+});
+
+app.listen(port, () => console.log(`Server running on http://localhost:${port}`));
